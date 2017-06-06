@@ -590,6 +590,10 @@ main(int argc, char **argv)
         flushbuf(ifp);
     }
 
+    struct timeval next_dump;
+    int should_dump = 0;
+    gettime(&next_dump);
+
     debugf("Entering main loop.\n");
 
     while(1) {
@@ -599,6 +603,7 @@ main(int argc, char **argv)
         gettime(&now);
 
         tv = check_neighbours_timeout;
+        timeval_min(&tv, &next_dump); //to consider also next dump
         timeval_min(&tv, &check_interfaces_timeout);
         timeval_min_sec(&tv, expiry_time);
         timeval_min_sec(&tv, source_expiry_time);
@@ -649,6 +654,12 @@ main(int argc, char **argv)
         if(exiting)
             break;
 
+        if(timeval_compare(&now, &next_dump) > 0) {
+
+          debugf("DUMPING: %s\n",format_time(&now));
+
+          timeval_add_msec(&next_dump, &now, 500);
+        }
         if(kernel_socket >= 0 && FD_ISSET(kernel_socket, &readfds)) {
             struct kernel_filter filter = {0};
             filter.route = kernel_route_notify;

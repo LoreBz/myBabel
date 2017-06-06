@@ -513,3 +513,20 @@ prefix_cmp(const unsigned char *p1, unsigned char plen1,
     else
         return PST_EQUALS;
 }
+
+const char *format_time(struct timeval *stv){
+	time_t nowtime;
+	struct tm *nowtm;
+	char tmbuf[64];
+	static char buf[64];
+
+  //struct timeval stv;
+	//gettimeofday(stv, NULL);
+
+  nowtime = stv->tv_sec;
+	nowtm = localtime(&nowtime);
+	//strftime(tmbuf, sizeof tmbuf, "%d-%m-%Y %H:%M:%S", nowtm);
+  strftime(tmbuf, sizeof tmbuf, "%H:%M:%S", nowtm);
+	snprintf(buf, sizeof buf, "%s.%06ld", tmbuf, stv->tv_usec);
+	return &(buf[0]);
+}
