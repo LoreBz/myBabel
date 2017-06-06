@@ -94,6 +94,7 @@ static int kernel_addr_changed = 0;
 struct timeval check_neighbours_timeout, check_interfaces_timeout;
 
 static volatile sig_atomic_t exiting = 0, dumping = 0, reopening = 0;
+static volatile sig_atomic_t topo_dumping = 0, quitting = 0;
 
 static int accept_local_connections(void);
 static void init_signals(void);
@@ -603,7 +604,8 @@ main(int argc, char **argv)
         gettime(&now);
 
         tv = check_neighbours_timeout;
-        timeval_min(&tv, &next_dump); //to consider also next dump
+        if(topo_dumping)
+          timeval_min(&tv, &next_dump); //to consider also next dump
         timeval_min(&tv, &check_interfaces_timeout);
         timeval_min_sec(&tv, expiry_time);
         timeval_min_sec(&tv, source_expiry_time);
@@ -654,12 +656,26 @@ main(int argc, char **argv)
         if(exiting)
             break;
 
-        if(timeval_compare(&now, &next_dump) > 0) {
+        if(quitting) {
+          //simulate failure:
+          //so not set retractions and so on but just close files
+          //then abort
 
-          debugf("DUMPING: %s\n",format_time(&now));
-
-          timeval_add_msec(&next_dump, &now, 500);
+          //close files
+          printf("FAILURE SIMULATION: %s, %s\n", format_time(&now),
+                format_eui64(myid));
+          exit(1);
         }
+
+        if(topo_dumping) {
+          if(timeval_compare(&now, &next_dump) > 0) {
+
+            printf("DUMPING: %s\n",format_time(&now));
+
+            timeval_add_msec(&next_dump, &now, 500);
+          }
+        }
+
         if(kernel_socket >= 0 && FD_ISSET(kernel_socket, &readfds)) {
             struct kernel_filter filter = {0};
             filter.route = kernel_route_notify;
@@ -1003,6 +1019,13 @@ static void
 sigdump(int signo)
 {
     dumping = 1;
+    topo_dumping = !topo_dumping;
+}
+
+static void
+sigquit(int signo)
+{
+    quitting = 1;
 }
 
 static void
@@ -1052,6 +1075,12 @@ init_signals(void)
     sa.sa_mask = ss;
     sa.sa_flags = 0;
     sigaction(SIGUSR2, &sa, NULL);
+
+    sigemptyset(&ss);
+    sa.sa_handler = sigquit;
+    sa.sa_mask = ss;
+    sa.sa_flags = 0;
+    sigaction(SIGQUIT, &sa, NULL);
 
 #ifdef SIGINFO
     sigemptyset(&ss);
