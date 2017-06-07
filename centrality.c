@@ -17,8 +17,8 @@ void print_dest_table() {
     struct destination* ptr = destinations;
     printf("-----------------DST----------------\n");
     while(ptr!=NULL) {
-      printf("%s\t%hu\t%s\n",format_eui64(ptr->nodeid), ptr->metric,
-       format_address(ptr->nexthop) );
+      printf("%s\t%hu\t%s\t%hu\n",format_eui64(ptr->nodeid), ptr->metric,
+       format_address(ptr->nexthop), ptr->centrality );
       ptr = ptr->next;
     }
 }
@@ -44,7 +44,7 @@ void remove_dest(unsigned char* nodeid){
 
 }
 
-struct destination* find_destination(unsigned char *nodeid){
+struct destination* find_destination(const unsigned char *nodeid){
   if (destinations==NULL)
     return NULL;
   struct destination *ptr=destinations;
@@ -73,6 +73,7 @@ void update_dest(unsigned char* nodeid, unsigned short metric, unsigned char* NH
         link->metric = metric;
        	memcpy(link->nexthop, NH, 16);
         link->contributors = NULL;
+        link->centrality = 0;
        	link->next = destinations;
        	destinations = link;
   }

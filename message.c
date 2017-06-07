@@ -122,6 +122,48 @@ network_prefix(int ae, int plen, unsigned int omitted,
 }
 
 static int
+parse_rid_subtlv(struct interface *ifp, const unsigned char *a, int alen, unsigned char* router_id) {
+    int type, len, i = 0;
+    unsigned short contribute = 0;
+    unsigned short centrality = 0;
+    unsigned char fhop[16];//forward-hop subtlv field
+
+    while(i < alen) {
+        type = a[i];
+        if(type == SUBTLV_PAD1) {
+            i++;
+            continue;
+        }
+
+        if(i + 1 > alen) {
+            fprintf(stderr, "Received truncated sub-TLV on Router-id.\n");
+            return -1;
+        }
+        len = a[i + 1];
+        //printf("len=%hu, alen=%hu\n",i+len, alen);
+        if(i + len > alen) {
+            fprintf(stderr, "Received truncated sub-TLV on Router-id.\n");
+            return -1;
+        }
+
+        if(type == SUBTLV_PADN) {
+            /* Nothing. */
+        } else if(type == SUBTLV_CENTRALITY) {
+            DO_NTOHS(contribute, a + i + 2);
+            memcpy(fhop, a+i+4, 16);
+            DO_NTOHS(centrality, a + i + 2 + 2 + 16);
+            printf("SUBRID(%s): <%hu, %s, %hu>\n",format_eui64(router_id),
+                    contribute, format_address(fhop), centrality);
+        } else {
+            debugf("Received unknown Router-id sub-TLV %d.\n", type);
+        }
+
+        i += len + 2;
+    }
+    return 1;
+}
+
+static int
 parse_update_subtlv(struct interface *ifp, int metric,
                     const unsigned char *a, int alen,
                     unsigned char *channels, int *channels_len_return)
@@ -438,6 +480,7 @@ parse_packet(const unsigned char *from, struct interface *ifp,
             have_router_id = 1;
             debugf("Received router-id %s from %s on %s.\n",
                    format_eui64(router_id), format_address(from), ifp->name);
+            parse_rid_subtlv(ifp, message + 2 + 10, len - 10, router_id);
         } else if(type == MESSAGE_NH) {
             unsigned char nh[16];
             int rc;
@@ -1217,14 +1260,39 @@ really_send_update(struct interface *ifp,
     }
 
     if(!ifp->have_buffered_id || memcmp(id, ifp->buffered_id, 8) != 0) {
+        int r_id_size = 10;
+        unsigned short contribute = 0;
         if(!is_ss && real_plen == 128 &&
            memcmp(real_prefix + 8, id, 8) == 0) {
             flags |= 0x40;
         } else {
-            start_message(ifp, MESSAGE_ROUTER_ID, 10);
+
+            struct destination* dest = find_destination(id);
+            if(dest) {
+              /*for the moment centrality subtlv carries:
+              - 2 bytes of subtlv header
+              - 2 bytes of contribute (unsigned short)
+              - 16 bytes of rhop (unsigned char[16])
+              - 2 bytes for dissemination of Load indexes*/
+              r_id_size = r_id_size + 2 + 2 + 16 + 2;
+              contribute = 99; //da fare una funzione vera prima o poi
+            }
+            start_message(ifp, MESSAGE_ROUTER_ID, r_id_size);
             accumulate_short(ifp, 0);
             accumulate_bytes(ifp, id, 8);
-            end_message(ifp, MESSAGE_ROUTER_ID, 10);
+            if(dest) {
+              int central_stlv_size = 2 + 2 + 16 + 2;
+              //adding sub-TLV for centrality
+              accumulate_byte(ifp, SUBTLV_CENTRALITY);//1Byte
+              accumulate_byte(ifp, central_stlv_size);//1Byte
+              //adding contribute
+              accumulate_short(ifp, contribute);//2Byte
+              //adding routing-hop
+              accumulate_bytes(ifp, dest->nexthop, 16);//16Byte
+              //adding disseminated Load Index
+              accumulate_short(ifp, dest->centrality);//2Byte
+            }
+            end_message(ifp, MESSAGE_ROUTER_ID, r_id_size);
         }
         memcpy(ifp->buffered_id, id, 8);
         ifp->have_buffered_id = 1;
