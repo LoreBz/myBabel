@@ -40,6 +40,7 @@ THE SOFTWARE.
 #include "resend.h"
 #include "message.h"
 #include "configuration.h"
+#include "centrality.h"
 
 unsigned char packet_header[4] = {42, 2};
 
@@ -1424,6 +1425,9 @@ flushupdates(struct interface *ifp)
                            MIN(route->channels_len, MAX_CHANNEL_HOPS - 1));
                     chlen = 1 + MIN(route->channels_len, MAX_CHANNEL_HOPS - 1);
                 }
+
+                //for advertised routes we update the dest table
+                update_dest(route->src->id, route->src->metric, route->nexthop);
 
                 really_send_update(ifp, route->src->id,
                                    route->src->prefix, route->src->plen,

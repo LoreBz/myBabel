@@ -9,11 +9,11 @@ CFLAGS = $(CDEBUGFLAGS) $(DEFINES) $(EXTRA_DEFINES)
 
 LDLIBS = -lrt
 
-SRCS = babeld.c net.c kernel.c util.c interface.c source.c neighbour.c \
+SRCS = babeld.c centrality.c net.c kernel.c util.c interface.c source.c neighbour.c \
        route.c xroute.c message.c resend.c configuration.c local.c \
        disambiguation.c rule.c
 
-OBJS = babeld.o net.o kernel.o util.o interface.o source.o neighbour.o \
+OBJS = babeld.o centrality.o net.o kernel.o util.o interface.o source.o neighbour.o \
        route.o xroute.o message.o resend.o configuration.o local.o \
        disambiguation.o rule.o
 
