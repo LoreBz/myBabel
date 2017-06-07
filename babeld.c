@@ -73,6 +73,10 @@ int skip_kernel_setup = 0;
 const char *logfile = NULL,
     *pidfile = "/var/run/babeld.pid",
     *state_file = "/var/lib/babel-state";
+const char *centfilename = NULL;
+const char *topofilename = NULL;
+FILE *centralityLog = NULL;
+FILE *topofile = NULL;
 
 unsigned char *receive_buffer = NULL;
 int receive_buffer_size = 0;
@@ -173,7 +177,7 @@ main(int argc, char **argv)
 
     while(1) {
         opt = getopt(argc, argv,
-                     "m:p:h:H:i:k:A:sruS:d:g:G:lwz:M:t:T:c:C:DL:I:V");
+                     "m:p:h:H:i:k:A:sruS:d:g:G:lwz:M:t:T:c:C:DL:I:Ve:n:");
         if(opt < 0)
             break;
 
@@ -313,6 +317,18 @@ main(int argc, char **argv)
             break;
         case 'L':
             logfile = optarg;
+            break;
+        case 'e':
+            centfilename = optarg;
+            centralityLog = fopen(centfilename, "a");
+            fprintf(centralityLog, "header\n");
+            fflush(centralityLog);
+            break;
+        case 'n':
+            topofilename = optarg;
+            topofile = fopen(topofilename, "a");
+            fprintf(topofile, "[\n\t{\n\t}");
+            fflush(topofile);
             break;
         case 'I':
             pidfile = optarg;
@@ -592,7 +608,7 @@ main(int argc, char **argv)
     }
 
     struct timeval next_dump;
-    int should_dump = 0;
+    //int should_dump = 0;
     gettime(&next_dump);
 
     debugf("Entering main loop.\n");
@@ -824,6 +840,14 @@ main(int argc, char **argv)
     debugf("Exiting...\n");
     usleep(roughly(10000));
     gettime(&now);
+
+    if(centralityLog) {
+      fclose(centralityLog);
+    }
+    if(topofile) {
+      fprintf(topofile, "\n]");
+      fclose(topofile);
+    }
 
     /* We need to flush so interface_up won't try to reinstall. */
     flush_all_routes();
