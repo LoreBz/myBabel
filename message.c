@@ -160,23 +160,36 @@ parse_rid_subtlv(struct interface *ifp, const unsigned char *from,
             char addr[INET_ADDRSTRLEN];
             inet_ntop(AF_INET, ifp->ipv4, addr, INET_ADDRSTRLEN);
             neigh = find_neighbour(from, ifp);
-            struct destination *dest=find_destination(router_id);
 
-            int through_me = (strcmp(format_address(fhop), addr)==0);
-            if(through_me) {
-              printf("THROUGH ME!: FH=%s,NH=%s\n", format_address(fhop), addr);
-              if(dest) {
-                dest->contributors = update_contributors(dest->contributors,
+            if(memcmp(myid, router_id, 8)!=0) {
+              struct destination *dest=find_destination(router_id);
+
+              //handle contribs
+              int through_me = (strcmp(format_address(fhop), addr)==0);
+              if(through_me) {
+                printf("THROUGH ME!: FH=%s,NH=%s\n", format_address(fhop), addr);
+                if(dest) {
+                  dest->contributors = update_contributors(dest->contributors,
                                           neigh,contribute);
-                dest->centrality = centrality;
+                }
+              } else {
+                printf("NOT THROUGH ME!: FH=%s,NH=%s\n", format_address(fhop), addr);
+                if(dest) {
+                  dest->contributors =
+                    remove_contribute(dest->contributors,neigh);
+                }
               }
-            } else {
-              printf("NOT THROUGH ME!: FH=%s,NH=%s\n", format_address(fhop), addr);
+
+              //handle dissseminated indexes
               if(dest) {
-                dest->contributors =
-                  remove_contribute(dest->contributors,neigh);
+                printf("LEARNED %hu for %s from %s\n", centrality, format_eui64(router_id), format_address(neigh->address));
+                if (strcmp(format_address(neigh->address), format_address(dest->neigh->address))==0) {
+                  printf("ACQUIRED!\n");
+                  dest->centrality = centrality;
+                }
               }
             }
+
         } else {
             debugf("Received unknown Router-id sub-TLV %d.\n", type);
         }
@@ -1532,7 +1545,7 @@ flushupdates(struct interface *ifp)
                 }
 
                 //for advertised routes we update the dest table
-                update_dest(route->src->id, route->src->metric, route->nexthop);
+                update_dest(route->src->id, route->src->metric, route->nexthop, route->neigh);
 
                 really_send_update(ifp, route->src->id,
                                    route->src->prefix, route->src->plen,

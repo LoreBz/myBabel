@@ -15,9 +15,10 @@ struct destination *destinations = NULL;
 
 void print_dest_table() {
     struct destination* ptr = destinations;
-    printf("-------------ID\tMETRIC\tNH\tLOAD\tTOTcontr------------\n");
+    printf("------------------------\n");
+    printf("ID\t\tMETRIC\t\tNH\t\tLOAD\t\tTOTcontr\n");
     while(ptr!=NULL) {
-      printf("%s\t%hu\t%s\t%hu\t%hu\n",format_eui64(ptr->nodeid), ptr->metric,
+      printf("%s\t\t%hu\t\t%s\t\t%hu\t\t%hu\n",format_eui64(ptr->nodeid), ptr->metric,
        format_address(ptr->nexthop), ptr->centrality, total_contribute(ptr->contributors) );
       ptr = ptr->next;
     }
@@ -50,6 +51,10 @@ void remove_dest(unsigned char* nodeid){
         if(prev)
           prev->next=ptr->next;
         free(ptr);
+        return;
+      } else {
+        prev = ptr;
+        ptr = ptr->next;
       }
     }
   }
@@ -69,7 +74,7 @@ struct destination* find_destination(const unsigned char *nodeid){
   return NULL;
 }
 
-void update_dest(unsigned char* nodeid, unsigned short metric, unsigned char* NH) {
+void update_dest(unsigned char* nodeid, unsigned short metric, unsigned char* NH, struct neighbour* neigh) {
   printf("\t\tUPD DEST: nid=%s, NH=%s\n",format_eui64(nodeid), format_address(NH));
   struct destination* old = find_destination(nodeid);
   if (old) {
@@ -77,6 +82,7 @@ void update_dest(unsigned char* nodeid, unsigned short metric, unsigned char* NH
       //if better update metric and NH
       old->metric=metric;
       memcpy(old->nexthop, NH, 16);
+      old->neigh = neigh;
     }
   } else {
     //if not existing we should allocate it and push it at the top of table
@@ -85,6 +91,7 @@ void update_dest(unsigned char* nodeid, unsigned short metric, unsigned char* NH
         memcpy(link->nodeid, nodeid, 8);
         link->metric = metric;
        	memcpy(link->nexthop, NH, 16);
+        link->neigh = neigh;
         link->contributors = NULL;
         link->centrality = 0;
        	link->next = destinations;

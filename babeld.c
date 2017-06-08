@@ -685,7 +685,7 @@ main(int argc, char **argv)
           exit(1);
         }
 
-        dump_tables(stdout);
+        //dump_tables(stdout);
         print_dest_table();
         myc = node_centrality();
         printf("MY CENTR %hu\n", myc);
