@@ -54,4 +54,4 @@ uninstall:
 	-rm -f $(TARGET)$(MANDIR)/man8/babeld.8
 
 clean:
-	-rm -f babeld babeld.html version.h *.o *~ core TAGS gmon.out
+	-rm -f babeld babeld.html *.o *~ core TAGS gmon.out

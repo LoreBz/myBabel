@@ -54,6 +54,7 @@ THE SOFTWARE.
 #include "local.h"
 #include "rule.h"
 #include "version.h"
+#include "centrality.h"
 
 struct timeval now;
 
@@ -609,6 +610,7 @@ main(int argc, char **argv)
 
     struct timeval next_dump;
     //int should_dump = 0;
+    unsigned short myc = 0;
     gettime(&next_dump);
 
     debugf("Entering main loop.\n");
@@ -683,9 +685,14 @@ main(int argc, char **argv)
           exit(1);
         }
 
+        dump_tables(stdout);
+        print_dest_table();
+        myc = node_centrality();
+        printf("MY CENTR %hu\n", myc);
+
+
         if(topo_dumping) {
           if(timeval_compare(&now, &next_dump) > 0) {
-
             printf("DUMPING: %s\n",format_time(&now));
 
             timeval_add_msec(&next_dump, &now, 500);
