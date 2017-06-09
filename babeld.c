@@ -74,6 +74,7 @@ int skip_kernel_setup = 0;
 const char *logfile = NULL,
     *pidfile = "/var/run/babeld.pid",
     *state_file = "/var/lib/babel-state";
+int cent_dumping = 0;
 const char *centfilename = NULL;
 const char *topofilename = NULL;
 FILE *centralityLog = NULL;
@@ -104,6 +105,8 @@ static volatile sig_atomic_t topo_dumping = 0, quitting = 0;
 static int accept_local_connections(void);
 static void init_signals(void);
 static void dump_tables(FILE *out);
+static void dump_centrality(FILE *out);
+static void dump_topology(FILE *out);
 
 static int
 kernel_route_notify(struct kernel_route *route, void *closure)
@@ -321,8 +324,9 @@ main(int argc, char **argv)
             break;
         case 'e':
             centfilename = optarg;
+            cent_dumping = 1;
             centralityLog = fopen(centfilename, "a");
-            fprintf(centralityLog, "header\n");
+            //fprintf(centralityLog, "header\n");
             fflush(centralityLog);
             break;
         case 'n':
@@ -610,7 +614,6 @@ main(int argc, char **argv)
 
     struct timeval next_dump;
     //int should_dump = 0;
-    unsigned short myc = 0;
     gettime(&next_dump);
 
     debugf("Entering main loop.\n");
@@ -685,10 +688,8 @@ main(int argc, char **argv)
           exit(1);
         }
 
-        //dump_tables(stdout);
-        print_dest_table();
-        myc = node_centrality();
-        printf("MY CENTR %hu\n", myc);
+        if(cent_dumping)
+            dump_centrality(centralityLog);
 
 
         if(topo_dumping) {
@@ -944,6 +945,17 @@ main(int argc, char **argv)
     if(pidfile)
         unlink(pidfile);
     exit(1);
+}
+
+static void
+dump_centrality(FILE *out) {
+  unsigned short nc = node_centrality();
+  fprintf(out, "%s,%ld.%06ld,%hu\n",format_time(&now),now.tv_sec,now.tv_usec,nc);
+}
+
+static void
+dump_topology(FILE *out) {
+
 }
 
 static int
