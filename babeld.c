@@ -687,7 +687,8 @@ main(int argc, char **argv)
                 format_eui64(myid));
           exit(1);
         }
-
+        printf("My id %s seqno %d\n", format_eui64(myid), myseqno);
+        print_dest_table();
         if(cent_dumping)
             dump_centrality(centralityLog);
 

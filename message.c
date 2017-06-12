@@ -154,7 +154,7 @@ parse_rid_subtlv(struct interface *ifp, const unsigned char *from,
             DO_NTOHS(contribute, a + i + 2);
             memcpy(fhop, a+i+4, 16);
             DO_NTOHS(centrality, a + i + 2 + 2 + 16);
-            printf("SUBRID(%s): <%hu, %s, %hu>\n",format_eui64(router_id),
+            printf("SUBRID(%s): <contr=%hu, fhop=%s, load=%hu>\n",format_eui64(router_id),
                     contribute, format_address(fhop), centrality);
             //LOGIC OF RECEIVING CENTRALITY INFORMATION
             char addr[INET_ADDRSTRLEN];
@@ -180,11 +180,10 @@ parse_rid_subtlv(struct interface *ifp, const unsigned char *from,
                 }
               }
 
-              //handle dissseminated indexes
+              //handle disseminated indexes
               if(dest) {
-                printf("LEARNED %hu for %s from %s\n", centrality, format_eui64(router_id), format_address(neigh->address));
                 if (strcmp(format_address(neigh->address), format_address(dest->neigh->address))==0) {
-                  printf("ACQUIRED!\n");
+                  printf("LEARNED %hu for %s from %s\n", centrality, format_eui64(router_id), format_address(neigh->address));
                   dest->centrality = centrality;
                 }
               }
@@ -1333,9 +1332,9 @@ really_send_update(struct interface *ifp,
             //adding routing-hop
             char addr[INET_ADDRSTRLEN];
             inet_ntop(AF_INET, ifp->ipv4, addr, INET_ADDRSTRLEN);
-            unsigned char myaddr[16];
-            memcpy(myaddr,addr,16);
-            accumulate_bytes(ifp, myaddr, 16);//16Byte
+            unsigned char xnexthop[16];
+            parse_address(addr,xnexthop,NULL);
+            accumulate_bytes(ifp, xnexthop, 16);//16Byte
             //adding disseminated Load Index
             accumulate_short(ifp, node_centrality());//2Byte
             printf("SendSDIR(%s) <%hu, %s, %hu>\n",format_eui64(id), contribute,
@@ -1449,6 +1448,10 @@ flushupdates(struct interface *ifp)
         return;
     }
 
+    //to select a single NH for each destination
+    //and coherently send RID SUBTLV
+    refresh_dest_table();
+
     if(ifp->num_buffered_updates > 0) {
         struct buffered_update *b = ifp->buffered_updates;
         int n = ifp->num_buffered_updates;
@@ -1545,7 +1548,7 @@ flushupdates(struct interface *ifp)
                 }
 
                 //for advertised routes we update the dest table
-                update_dest(route->src->id, route->src->metric, route->nexthop, route->neigh);
+                //update_dest(route->src->id, route->src->metric, route->nexthop, route->neigh);
 
                 really_send_update(ifp, route->src->id,
                                    route->src->prefix, route->src->plen,

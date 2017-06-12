@@ -20,7 +20,7 @@ extern struct destination *destinations;
 
 void print_dest_table();
 
-void refresh_dest_table(unsigned char* nodeid);
+void refresh_dest_table();
 void remove_dest(unsigned char* nodeid);
 struct destination* find_destination(const unsigned char *nodeid);
 void update_dest(unsigned char* nodeid, unsigned short metric, unsigned char* NH, struct neighbour* neigh);

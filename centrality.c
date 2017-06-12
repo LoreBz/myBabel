@@ -15,13 +15,15 @@ struct destination *destinations = NULL;
 
 void print_dest_table() {
     struct destination* ptr = destinations;
-    printf("------------------------\n");
-    printf("ID\t\tMETRIC\t\tNH\t\tLOAD\t\tTOTcontr\n");
+    printf("--------------------------------------------------------------------\n");
+    printf("%-24s %-6s %-12s %-5s %-3s\n", "ID", "METRIC", "NH", "LOAD", "TOTcontr");
+    //printf("ID\t\tMETRIC\t\tNH\t\tLOAD\t\tTOTcontr\n");
     while(ptr!=NULL) {
-      printf("%s\t\t%hu\t\t%s\t\t%hu\t\t%hu\n",format_eui64(ptr->nodeid), ptr->metric,
+      printf("%-24s %-6hu %-12s %-5hu %-3hu\n",format_eui64(ptr->nodeid), ptr->metric,
        format_address(ptr->nexthop), ptr->centrality, total_contribute(ptr->contributors) );
       ptr = ptr->next;
     }
+    printf("\n");
 }
 
 unsigned short node_centrality() {
@@ -36,8 +38,17 @@ unsigned short node_centrality() {
   return retval;
 }
 
-void refresh_dest_table(unsigned char* nodeid) {
-
+void refresh_dest_table() {
+  struct route_stream *routes;
+  routes = route_stream(ROUTE_INSTALLED);
+  if(routes) {
+      while(1) {
+          struct babel_route *rt = route_stream_next(routes);
+          if(rt == NULL) break;
+          update_dest(rt->src->id, rt->src->metric, rt->nexthop, rt->neigh);
+      }
+      route_stream_done(routes);
+  }
 }
 
 void remove_dest(unsigned char* nodeid){
@@ -75,10 +86,10 @@ struct destination* find_destination(const unsigned char *nodeid){
 }
 
 void update_dest(unsigned char* nodeid, unsigned short metric, unsigned char* NH, struct neighbour* neigh) {
-  printf("\t\tUPD DEST: nid=%s, NH=%s\n",format_eui64(nodeid), format_address(NH));
   struct destination* old = find_destination(nodeid);
   if (old) {
     if (metric < old->metric) {
+      printf("\t\tUPD DEST: nid=%s, NH=%s\n",format_eui64(nodeid), format_address(NH));
       //if better update metric and NH
       old->metric=metric;
       memcpy(old->nexthop, NH, 16);
@@ -86,6 +97,7 @@ void update_dest(unsigned char* nodeid, unsigned short metric, unsigned char* NH
     }
   } else {
     //if not existing we should allocate it and push it at the top of table
+    printf("\t\tUPD DEST: nid=%s, NH=%s\n",format_eui64(nodeid), format_address(NH));
     struct destination *link =
           (struct destination*) malloc(sizeof(struct destination));
         memcpy(link->nodeid, nodeid, 8);

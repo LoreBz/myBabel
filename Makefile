@@ -26,9 +26,6 @@ local.o: local.c version.h
 
 kernel.o: kernel_netlink.c kernel_socket.c
 
-version.h:
-	./generate-version.sh > version.h
-
 .SUFFIXES: .man .html
 
 .man.html:
