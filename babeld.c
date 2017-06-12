@@ -613,8 +613,10 @@ main(int argc, char **argv)
     }
 
     struct timeval next_dump;
+    struct timeval next_dest_dump;
     //int should_dump = 0;
     gettime(&next_dump);
+    gettime(&next_dest_dump);
 
     debugf("Entering main loop.\n");
 
@@ -687,16 +689,20 @@ main(int argc, char **argv)
                 format_eui64(myid));
           exit(1);
         }
-        printf("My id %s seqno %d\n", format_eui64(myid), myseqno);
-        print_dest_table();
+
         if(cent_dumping)
             dump_centrality(centralityLog);
 
+        //dest_table dump every 10 sec or little more
+        if(timeval_compare(&now, &next_dest_dump) > 0) {
+          printf("My id %s seqno %d\n", format_eui64(myid), myseqno);
+          print_dest_table();
+          timeval_add_msec(&next_dest_dump, &now, 10000);
+        }
 
         if(topo_dumping) {
           if(timeval_compare(&now, &next_dump) > 0) {
             printf("DUMPING: %s\n",format_time(&now));
-
             timeval_add_msec(&next_dump, &now, 500);
           }
         }
