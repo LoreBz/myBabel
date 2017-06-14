@@ -703,6 +703,7 @@ main(int argc, char **argv)
         if(topo_dumping) {
           if(timeval_compare(&now, &next_dump) > 0) {
             printf("DUMPING: %s\n",format_time(&now));
+            dump_topology(topofile);
             timeval_add_msec(&next_dump, &now, 500);
           }
         }
@@ -962,7 +963,56 @@ dump_centrality(FILE *out) {
 
 static void
 dump_topology(FILE *out) {
+  fprintf(out, ",\n\t{\n"
+    "\t\t\"router_id\": \"%s\",\n"
+    "\t\t\"topology_id\": \"%s\",\n"
+    "\t\t\"routes\": [\n",
+    format_eui64(myid),format_time(&now));
 
+  struct xroute_stream *xroutes;
+  struct route_stream *routes;
+
+  xroutes = xroute_stream();
+  int count=0;
+  if(xroutes) {
+      while(1) {
+          struct xroute *xrt = xroute_stream_next(xroutes);
+          if(xrt == NULL) break;
+
+          if(count!=0) {
+            fprintf(out, ",\n");
+          }
+          fprintf(out, "\t\t\t{\n"
+            "\t\t\t\t\"destination\": \"%s\",\n"
+            "\t\t\t\t\"next\": \"me\",\n"
+            "\t\t\t\t\"cost\": \"%i\"\n"
+            "\t\t\t}",
+            format_prefix(xrt->prefix, xrt->plen),xrt->metric);
+            count++;
+      }
+      xroute_stream_done(xroutes);
+  }
+
+  routes = route_stream(ROUTE_INSTALLED);
+  if(routes) {
+      while(1) {
+          struct babel_route *rt = route_stream_next(routes);
+          if(rt == NULL) break;
+          if(count!=0) {
+            fprintf(out, ",\n");
+          }
+          fprintf(out, "\t\t\t{\n"
+          "\t\t\t\t\"destination\": \"%s\",\n"
+          "\t\t\t\t\"next\": \"%s\",\n"
+          "\t\t\t\t\"cost\": \"%d\"\n"
+          "\t\t\t}",
+          format_prefix(rt->src->prefix, rt->src->plen),
+          format_address(rt->nexthop),rt->smoothed_metric);
+          count++;
+      }
+      route_stream_done(routes);
+  }
+  fprintf(out, "\n\t\t]\n\t}");
 }
 
 static int
