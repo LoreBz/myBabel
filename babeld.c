@@ -77,8 +77,10 @@ const char *logfile = NULL,
 int cent_dumping = 0;
 const char *centfilename = NULL;
 const char *topofilename = NULL;
+const char *neighfilename = NULL;
 FILE *centralityLog = NULL;
 FILE *topofile = NULL;
+FILE *neighfile = NULL;
 
 unsigned char *receive_buffer = NULL;
 int receive_buffer_size = 0;
@@ -107,6 +109,7 @@ static void init_signals(void);
 static void dump_tables(FILE *out);
 static void dump_centrality(FILE *out);
 static void dump_topology(FILE *out);
+static void dump_neighborhood(FILE *out);
 
 static int
 kernel_route_notify(struct kernel_route *route, void *closure)
@@ -181,7 +184,7 @@ main(int argc, char **argv)
 
     while(1) {
         opt = getopt(argc, argv,
-                     "m:p:h:H:i:k:A:sruS:d:g:G:lwz:M:t:T:c:C:DL:I:Ve:n:");
+                     "m:p:h:H:i:k:A:sruS:d:g:G:lwz:M:t:T:c:C:DL:I:Ve:n:N:");
         if(opt < 0)
             break;
 
@@ -334,6 +337,12 @@ main(int argc, char **argv)
             topofile = fopen(topofilename, "a");
             fprintf(topofile, "[\n\t{\n\t}");
             fflush(topofile);
+            break;
+        case 'N':
+            neighfilename = optarg;
+            neighfile = fopen(neighfilename, "a");
+            fprintf(neighfile, "[\n\t{\n\t}");
+            fflush(neighfile);
             break;
         case 'I':
             pidfile = optarg;
@@ -704,7 +713,8 @@ main(int argc, char **argv)
           if(timeval_compare(&now, &next_dump) > 0) {
             printf("DUMPING: %s\n",format_time(&now));
             dump_topology(topofile);
-            timeval_add_msec(&next_dump, &now, 500);
+            dump_neighborhood(neighfile);
+            timeval_add_msec(&next_dump, &now, 1000);
           }
         }
 
@@ -863,6 +873,8 @@ main(int argc, char **argv)
     if(topofile) {
       fprintf(topofile, "\n]");
       fclose(topofile);
+      fprintf(neighfile, "\n]");
+      fclose(neighfile);
     }
 
     /* We need to flush so interface_up won't try to reinstall. */
@@ -985,9 +997,9 @@ dump_topology(FILE *out) {
           fprintf(out, "\t\t\t{\n"
             "\t\t\t\t\"destination\": \"%s\",\n"
             "\t\t\t\t\"next\": \"me\",\n"
-            "\t\t\t\t\"cost\": \"%i\"\n"
+            "\t\t\t\t\"cost\": \"%lf\"\n"
             "\t\t\t}",
-            format_prefix(xrt->prefix, xrt->plen),xrt->metric);
+            format_prefix(xrt->prefix, xrt->plen),xrt->metric/256.0);
             count++;
       }
       xroute_stream_done(xroutes);
@@ -1004,15 +1016,56 @@ dump_topology(FILE *out) {
           fprintf(out, "\t\t\t{\n"
           "\t\t\t\t\"destination\": \"%s\",\n"
           "\t\t\t\t\"next\": \"%s\",\n"
-          "\t\t\t\t\"cost\": \"%d\"\n"
+          "\t\t\t\t\"cost\": \"%lf\"\n"
           "\t\t\t}",
           format_prefix(rt->src->prefix, rt->src->plen),
-          format_address(rt->nexthop),rt->smoothed_metric);
+          format_address(rt->nexthop),route_metric(rt)/256.0);
           count++;
       }
       route_stream_done(routes);
   }
   fprintf(out, "\n\t\t]\n\t}");
+}
+
+static void
+dump_neighborhood(FILE *out) {
+  fprintf(out, ",\n\t{\n"
+    "\t\t\"router_id\": \"%s\",\n"
+    "\t\t\"time\": \"%s\",\n"
+    "\t\t\"interfaces\": [\n",
+    format_eui64(myid),format_time(&now));
+
+    int count=0;
+    struct interface *ifp;
+    FOR_ALL_INTERFACES(ifp) {
+      char addr[INET_ADDRSTRLEN];
+      inet_ntop(AF_INET, ifp->ipv4, addr, INET_ADDRSTRLEN);
+      char addr6[INET6_ADDRSTRLEN];
+      inet_ntop(AF_INET6, ifp->ll, addr6, INET6_ADDRSTRLEN);
+      if(count!=0) {
+        fprintf(out, ",\n");
+      }
+      fprintf(out, "\t\t\t{\n"
+        "\t\t\t\t\"name\": \"%s\",\n"
+        "\t\t\t\t\"ipv4\": \"%s\",\n"
+        "\t\t\t\t\"ipv6\": \"%s\"\n"
+        "\t\t\t}",ifp->name, addr, addr6);
+      count++;
+    }
+    fprintf(out, "\n\t\t\t],\n\t\t\"neighbours\": [\n");
+    count = 0;
+    struct neighbour *neigh;
+    FOR_ALL_NEIGHBOURS(neigh) {
+      if(count!=0) {
+        fprintf(out, ",\n");
+      }
+      fprintf(out, "\t\t\t{\n"
+        "\t\t\t\t\"address\": \"%s\",\n"
+        "\t\t\t\t\"cost\": \"%lf\"\n"
+        "\t\t\t}",format_address(neigh->address), neighbour_cost(neigh)/256.0);
+      count++;
+    }
+    fprintf(out, "\n\t\t]\n\t}");
 }
 
 static int
