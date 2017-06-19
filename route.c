@@ -40,6 +40,7 @@ THE SOFTWARE.
 #include "configuration.h"
 #include "local.h"
 #include "disambiguation.h"
+#include "centrality.h"
 
 struct babel_route **routes = NULL;
 static int route_slots = 0, max_route_slots = 0;
@@ -502,8 +503,11 @@ uninstall_route(struct babel_route *route)
         return;
 
     route->installed = 0;
+    remove_dest(route->src->id);
+    refresh_dest_table();
 
     kuninstall_route(route);
+
 
     local_notify_route(route, LOCAL_CHANGE);
 }

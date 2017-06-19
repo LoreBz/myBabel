@@ -61,6 +61,8 @@ void remove_dest(unsigned char* nodeid){
         //swing pointers and free current
         if(prev)
           prev->next=ptr->next;
+        else
+          destinations=NULL;
         free(ptr);
         return;
       } else {
