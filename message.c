@@ -125,8 +125,8 @@ static int
 parse_rid_subtlv(struct interface *ifp, const unsigned char *from,
                 const unsigned char *a, int alen, unsigned char* router_id) {
     int type, len, i = 0;
-    unsigned short contribute = 0;
-    unsigned short centrality = 0;
+    unsigned contribute = 0;
+    unsigned centrality = 0;
     unsigned char fhop[16];//forward-hop subtlv field
     struct neighbour *neigh;
 
@@ -151,10 +151,10 @@ parse_rid_subtlv(struct interface *ifp, const unsigned char *from,
         if(type == SUBTLV_PADN) {
             /* Nothing. */
         } else if(type == SUBTLV_CENTRALITY) {
-            DO_NTOHS(contribute, a + i + 2);
-            memcpy(fhop, a+i+4, 16);
-            DO_NTOHS(centrality, a + i + 2 + 2 + 16);
-            printf("SUBRID(%s): <contr=%hu, fhop=%s, load=%hu>\n",format_eui64(router_id),
+            DO_NTOHL(contribute, a + i + 2);
+            memcpy(fhop, a+i+6, 16);
+            DO_NTOHL(centrality, a + i + 2 + 4 + 16);
+            printf("SUBRID(%s): <contr=%u, fhop=%s, load=%u>\n",format_eui64(router_id),
                     contribute, format_address(fhop), centrality);
             //LOGIC OF RECEIVING CENTRALITY INFORMATION
             char addr[INET_ADDRSTRLEN];
@@ -183,7 +183,7 @@ parse_rid_subtlv(struct interface *ifp, const unsigned char *from,
               //handle disseminated indexes
               if(dest) {
                 if (strcmp(format_address(neigh->address), format_address(dest->neigh->address))==0) {
-                  printf("LEARNED %hu for %s from %s\n", centrality, format_eui64(router_id), format_address(neigh->address));
+                  printf("LEARNED %u for %s from %s\n", centrality, format_eui64(router_id), format_address(neigh->address));
                   dest->centrality = centrality;
                 }
               }
@@ -1296,17 +1296,17 @@ really_send_update(struct interface *ifp,
 
     if(!ifp->have_buffered_id || memcmp(id, ifp->buffered_id, 8) != 0) {
         int r_id_size = 10;
-        unsigned short contribute = 1;//send 1 + aggregation...
+        unsigned contribute = 1;//send 1 + aggregation...
         if(!is_ss && real_plen == 128 &&
            memcmp(real_prefix + 8, id, 8) == 0) {
             flags |= 0x40;
         } else {
             /*for the moment centrality subtlv carries:
             - 2 bytes of subtlv header
-            - 2 bytes of contribute (unsigned short)
+            - 4 bytes of contribute (unsigned)
             - 16 bytes of rhop (unsigned char[16])
-            - 2 bytes for dissemination of Load indexes*/
-            int central_stlv_size = 2 + 2 + 16 + 2;
+            - 4 bytes for dissemination of Load indexes (unsigned)*/
+            int central_stlv_size = 2 + 4 + 16 + 4;
             r_id_size = r_id_size + central_stlv_size;
             struct destination* dest = find_destination(id);
             if(dest)
@@ -1320,13 +1320,13 @@ really_send_update(struct interface *ifp,
             accumulate_byte(ifp, SUBTLV_CENTRALITY);//1Byte
             accumulate_byte(ifp, central_stlv_size);//1Byte
             //adding contribute
-            accumulate_short(ifp, contribute);//2Byte
+            accumulate_int(ifp, contribute);//4Byte
             if(dest) {
             //adding routing-hop
             accumulate_bytes(ifp, dest->nexthop, 16);//16Byte
             //adding disseminated Load Index
-            accumulate_short(ifp, dest->centrality);//2Byte
-            printf("SendSDIR(%s) <%hu, %s, %hu>\n",format_eui64(id), contribute,
+            accumulate_int(ifp, dest->centrality);//4Byte
+            printf("SendSDIR(%s) <%u, %s, %u>\n",format_eui64(id), contribute,
                       format_address(dest->nexthop), dest->centrality);
           } else {
             //adding routing-hop
@@ -1336,8 +1336,8 @@ really_send_update(struct interface *ifp,
             parse_address(addr,xnexthop,NULL);
             accumulate_bytes(ifp, xnexthop, 16);//16Byte
             //adding disseminated Load Index
-            accumulate_short(ifp, node_centrality());//2Byte
-            printf("SendSDIR(%s) <%hu, %s, %hu>\n",format_eui64(id), contribute,
+            accumulate_int(ifp, node_centrality());//4Byte
+            printf("SendSDIR(%s) <%u, %s, %u>\n",format_eui64(id), contribute,
                       addr, node_centrality());
           }
 

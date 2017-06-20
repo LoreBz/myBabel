@@ -19,16 +19,16 @@ void print_dest_table() {
     printf("%-24s %-6s %-12s %-5s %-3s\n", "ID", "METRIC", "NH", "LOAD", "TOTcontr");
     //printf("ID\t\tMETRIC\t\tNH\t\tLOAD\t\tTOTcontr\n");
     while(ptr!=NULL) {
-      printf("%-24s %-6hu %-12s %-5hu %-3hu\n",format_eui64(ptr->nodeid), ptr->metric,
+      printf("%-24s %-6hu %-12s %-5u %-3hu\n",format_eui64(ptr->nodeid), ptr->metric,
        format_address(ptr->nexthop), ptr->centrality, total_contribute(ptr->contributors) );
       ptr = ptr->next;
     }
     printf("\n");
 }
 
-unsigned short node_centrality() {
+unsigned node_centrality() {
   struct destination* ptr = destinations;
-  unsigned short retval = 0;
+  unsigned retval = 0;
   while(ptr != NULL) {
     if(ptr->nodeid == myid)
       continue;
@@ -59,13 +59,13 @@ int dest_installed(unsigned char* nodeid) {
 
 void refresh_dest_table() {
   //at first remove unistalled destinations
-  struct destination dest;
+  struct destination *dest;
   for (dest=destinations; dest; dest=dest->next) {
     if (!dest_installed(dest->nodeid)) {
       remove_dest(dest->nodeid);
     }
   }
-  //then select best NH for each destination 
+  //then select best NH for each destination
   struct route_stream *routes;
   routes = route_stream(ROUTE_INSTALLED);
   if(routes) {
@@ -141,9 +141,9 @@ void update_dest(unsigned char* nodeid, unsigned short metric, unsigned char* NH
   return;
 }
 
-unsigned short total_contribute(struct contribute *head) {
+unsigned total_contribute(struct contribute *head) {
   struct contribute *ptr = head;
-	unsigned short total = 0;
+	unsigned total = 0;
   //printf("\t");
 	while(ptr != NULL) {
       total = total + (ptr->contribute);
@@ -156,7 +156,7 @@ unsigned short total_contribute(struct contribute *head) {
 }
 
 struct contribute *update_contributors(struct contribute *head,
-                        struct neighbour *neigh, unsigned short contribute) {
+                        struct neighbour *neigh, unsigned contribute) {
   printf("\t\tadding %hu, for neigh:%s\n",contribute, format_address(neigh->address));
 	struct contribute *ptr = head;
 	int found = 0;

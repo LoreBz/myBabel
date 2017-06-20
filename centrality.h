@@ -1,7 +1,7 @@
 
 struct contribute {
     struct neighbour *neigh;
-    unsigned short contribute;
+    unsigned contribute;
     struct contribute *next;
 };
 
@@ -11,7 +11,7 @@ struct destination {
   unsigned char nexthop[16];
   struct neighbour* neigh;
   struct contribute *contributors;
-  unsigned short centrality;
+  unsigned centrality;
   struct destination *next;
 };
 
@@ -24,9 +24,9 @@ void refresh_dest_table();
 void remove_dest(unsigned char* nodeid);
 struct destination* find_destination(const unsigned char *nodeid);
 void update_dest(unsigned char* nodeid, unsigned short metric, unsigned char* NH, struct neighbour* neigh);
-unsigned short total_contribute(struct contribute *head);
+unsigned total_contribute(struct contribute *head);
 struct contribute *update_contributors(struct contribute *head,
-                        struct neighbour *neigh, unsigned short contribute);
+                        struct neighbour *neigh, unsigned contribute);
 struct contribute* remove_contribute(struct contribute *head,
                                           struct neighbour *neigh);
-unsigned short node_centrality();
+unsigned node_centrality();
