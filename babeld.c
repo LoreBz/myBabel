@@ -711,7 +711,7 @@ main(int argc, char **argv)
 
         if(topo_dumping) {
           if(timeval_compare(&now, &next_dump) > 0) {
-            printf("DUMPING: %s\n",format_time(&now));
+            //printf("DUMPING: %s\n",format_time(&now));
             dump_topology(topofile);
             dump_neighborhood(neighfile);
             timeval_add_msec(&next_dump, &now, 1000);

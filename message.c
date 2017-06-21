@@ -123,11 +123,13 @@ network_prefix(int ae, int plen, unsigned int omitted,
 
 static int
 parse_rid_subtlv(struct interface *ifp, const unsigned char *from,
-                const unsigned char *a, int alen, unsigned char* router_id) {
+                const unsigned char *a, int alen, unsigned char* router_id,
+              unsigned char* senderAddr) {
     int type, len, i = 0;
     unsigned contribute = 0;
     unsigned centrality = 0;
     unsigned char fhop[16];//forward-hop subtlv field
+    unsigned short refmetric = 0;
     struct neighbour *neigh;
 
     while(i < alen) {
@@ -154,26 +156,28 @@ parse_rid_subtlv(struct interface *ifp, const unsigned char *from,
             DO_NTOHL(contribute, a + i + 2);
             memcpy(fhop, a+i+6, 16);
             DO_NTOHL(centrality, a + i + 2 + 4 + 16);
-            printf("SUBRID(%s): <contr=%u, fhop=%s, load=%u>\n",format_eui64(router_id),
-                    contribute, format_address(fhop), centrality);
+            DO_NTOHL(refmetric, a + i + 2 + 4 + 16 + 2);
+            printf("%s: SUBRID(%s) <contr=%u, fhop=%s, load=%u, refm=%u>\n",
+            format_address(senderAddr),format_eui64(router_id),
+                    contribute, format_address(fhop), centrality, refmetric);
             //LOGIC OF RECEIVING CENTRALITY INFORMATION
             char addr[INET_ADDRSTRLEN];
             inet_ntop(AF_INET, ifp->ipv4, addr, INET_ADDRSTRLEN);
-            neigh = find_neighbour(from, ifp);
+            neigh = find_neighbour(from,ifp);
 
             if(memcmp(myid, router_id, 8)!=0) {
-              struct destination *dest=find_destination(router_id);
+              struct destination *dest = find_update_dest(router_id, refmetric+neighbour_cost(neigh), senderAddr);
 
               //handle contribs
               int through_me = (strcmp(format_address(fhop), addr)==0);
               if(through_me) {
-                printf("THROUGH ME!: FH=%s,NH=%s\n", format_address(fhop), addr);
+                debugf("THROUGH ME!: FH=%s,RXif=%s\n", format_address(fhop), addr);
                 if(dest) {
                   dest->contributors = update_contributors(dest->contributors,
                                           neigh,contribute);
                 }
               } else {
-                printf("NOT THROUGH ME!: FH=%s,NH=%s\n", format_address(fhop), addr);
+                debugf("NOT THROUGH ME!: FH=%s,RXif=%s\n", format_address(fhop), addr);
                 if(dest) {
                   dest->contributors =
                     remove_contribute(dest->contributors,neigh);
@@ -182,8 +186,8 @@ parse_rid_subtlv(struct interface *ifp, const unsigned char *from,
 
               //handle disseminated indexes
               if(dest) {
-                if (strcmp(format_address(neigh->address), format_address(dest->neigh->address))==0) {
-                  printf("LEARNED %u for %s from %s\n", centrality, format_eui64(router_id), format_address(neigh->address));
+                if (strcmp(format_address(senderAddr), format_address(dest->nexthop))==0) {
+                  debugf("LEARNED %u for %s from %s\n", centrality, format_eui64(router_id), format_address(senderAddr));
                   dest->centrality = centrality;
                 }
               }
@@ -515,7 +519,7 @@ parse_packet(const unsigned char *from, struct interface *ifp,
             have_router_id = 1;
             debugf("Received router-id %s from %s on %s.\n",
                    format_eui64(router_id), format_address(from), ifp->name);
-            parse_rid_subtlv(ifp, from, message + 2 + 10, len - 10, router_id);
+            parse_rid_subtlv(ifp, from, message + 2 + 10, len - 10, router_id, v4_nh);
         } else if(type == MESSAGE_NH) {
             unsigned char nh[16];
             int rc;
@@ -630,7 +634,12 @@ parse_packet(const unsigned char *from, struct interface *ifp,
                 if(!ifp->ipv4)
                     goto done;
             }
-
+            /*if(have_router_id) {
+            struct babel_route *rt = find_route_entry(prefix,plen);
+              if(rt && neigh) {
+                update_dest(router_id, rt->smoothed_metric, rt->nexthop, neigh);
+              }
+            }*/
             parse_update_subtlv(ifp, metric, message + 2 + parsed_len,
                                 len - parsed_len, channels, &channels_len);
             update_route(router_id, prefix, plen, src_prefix, src_plen, seqno,
@@ -1305,8 +1314,9 @@ really_send_update(struct interface *ifp,
             - 2 bytes of subtlv header
             - 4 bytes of contribute (unsigned)
             - 16 bytes of rhop (unsigned char[16])
-            - 4 bytes for dissemination of Load indexes (unsigned)*/
-            int central_stlv_size = 2 + 4 + 16 + 4;
+            - 4 bytes for dissemination of Load indexes (unsigned)
+            - 2 bytes di refmetric (FIXME: PRIMA O POI VA EVITATO)*/
+            int central_stlv_size = 2 + 4 + 16 + 4 + 2;
             r_id_size = r_id_size + central_stlv_size;
             struct destination* dest = find_destination(id);
             if(dest)
@@ -1326,7 +1336,7 @@ really_send_update(struct interface *ifp,
             accumulate_bytes(ifp, dest->nexthop, 16);//16Byte
             //adding disseminated Load Index
             accumulate_int(ifp, dest->centrality);//4Byte
-            printf("SendSDIR(%s) <%u, %s, %u>\n",format_eui64(id), contribute,
+            debugf("SendSDIR(%s) <%u, %s, %u>\n",format_eui64(id), contribute,
                       format_address(dest->nexthop), dest->centrality);
           } else {
             //adding routing-hop
@@ -1337,10 +1347,10 @@ really_send_update(struct interface *ifp,
             accumulate_bytes(ifp, xnexthop, 16);//16Byte
             //adding disseminated Load Index
             accumulate_int(ifp, node_centrality());//4Byte
-            printf("SendSDIR(%s) <%u, %s, %u>\n",format_eui64(id), contribute,
+            debugf("SendSDIR(%s) <%u, %s, %u>\n",format_eui64(id), contribute,
                       addr, node_centrality());
           }
-
+            accumulate_short(ifp, metric);
             end_message(ifp, MESSAGE_ROUTER_ID, r_id_size);
         }
         memcpy(ifp->buffered_id, id, 8);
@@ -1447,10 +1457,6 @@ flushupdates(struct interface *ifp)
             flushupdates(ifp_aux);
         return;
     }
-
-    //to select a single NH for each destination
-    //and coherently send RID SUBTLV
-    refresh_dest_table();
 
     if(ifp->num_buffered_updates > 0) {
         struct buffered_update *b = ifp->buffered_updates;

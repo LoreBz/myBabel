@@ -39,7 +39,7 @@ unsigned node_centrality() {
 }
 
 
-int dest_installed(unsigned char* nodeid) {
+/*int dest_installed(unsigned char* nodeid) {
   struct route_stream *routes;
   routes = route_stream(ROUTE_INSTALLED);
   int found = 0;
@@ -55,9 +55,9 @@ int dest_installed(unsigned char* nodeid) {
       route_stream_done(routes);
   }
   return found;
-}
+}*/
 
-void refresh_dest_table() {
+/*void refresh_dest_table() {
   //at first remove unistalled destinations
   struct destination *dest;
   for (dest=destinations; dest; dest=dest->next) {
@@ -76,11 +76,9 @@ void refresh_dest_table() {
       }
       route_stream_done(routes);
   }
-}
+}*/
 
 void remove_dest(unsigned char* nodeid){
-  struct destination* toRem = find_destination(nodeid);
-  if(toRem) {
     struct destination* prev = NULL;
     struct destination* ptr = destinations;
     while (ptr!=NULL) {
@@ -97,8 +95,6 @@ void remove_dest(unsigned char* nodeid){
         ptr = ptr->next;
       }
     }
-  }
-
 }
 
 struct destination* find_destination(const unsigned char *nodeid){
@@ -114,11 +110,38 @@ struct destination* find_destination(const unsigned char *nodeid){
   return NULL;
 }
 
-void update_dest(unsigned char* nodeid, unsigned short metric, unsigned char* NH, struct neighbour* neigh) {
+struct destination *find_update_dest(unsigned char* nodeid,unsigned short metric, unsigned char* NH) {
+  struct destination *dest;
+  for (dest=destinations; dest; dest=dest->next) {
+    if (memcmp(dest->nodeid, nodeid, 8)==0) {
+      if (metric < dest->metric) {
+        debugf("\t\tUPD DEST: nid=%s, NH=%s\n",format_eui64(nodeid), format_address(NH));
+        //if better update metric and NH
+        dest->metric=metric;
+        memcpy(dest->nexthop, NH, 16);
+      }
+      return dest;
+    }
+  }
+  //if not already return means we miss this dest
+  printf("\t\tCREAT DEST: nid=%s, NH=%s\n",format_eui64(nodeid), format_address(NH));
+  struct destination *link =
+        (struct destination*) malloc(sizeof(struct destination));
+      memcpy(link->nodeid, nodeid, 8);
+      link->metric = metric;
+      memcpy(link->nexthop, NH, 16);
+      link->contributors = NULL;
+      link->centrality = 0;
+      link->next = destinations;
+      destinations = link;
+      return destinations;
+}
+
+/*void update_dest(unsigned char* nodeid, unsigned short metric, unsigned char* NH, struct neighbour* neigh) {
   struct destination* old = find_destination(nodeid);
   if (old) {
     if (metric < old->metric) {
-      printf("\t\tUPD DEST: nid=%s, NH=%s\n",format_eui64(nodeid), format_address(NH));
+      debugf("\t\tUPD DEST: nid=%s, NH=%s\n",format_eui64(nodeid), format_address(NH));
       //if better update metric and NH
       old->metric=metric;
       memcpy(old->nexthop, NH, 16);
@@ -139,7 +162,7 @@ void update_dest(unsigned char* nodeid, unsigned short metric, unsigned char* NH
        	destinations = link;
   }
   return;
-}
+}*/
 
 unsigned total_contribute(struct contribute *head) {
   struct contribute *ptr = head;
@@ -157,7 +180,7 @@ unsigned total_contribute(struct contribute *head) {
 
 struct contribute *update_contributors(struct contribute *head,
                         struct neighbour *neigh, unsigned contribute) {
-  printf("\t\tadding %hu, for neigh:%s\n",contribute, format_address(neigh->address));
+  debugf("\t\tadding %hu, for neigh:%s\n",contribute, format_address(neigh->address));
 	struct contribute *ptr = head;
 	int found = 0;
 	while(ptr != NULL) {

@@ -125,3 +125,5 @@ void route_changed(struct babel_route *route,
                    struct source *oldsrc, unsigned short oldmetric);
 void route_lost(struct source *src, unsigned oldmetric);
 void expire_routes(void);
+struct babel_route *find_route_entry(const unsigned char *prefix,
+                        unsigned char plen);

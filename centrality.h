@@ -9,7 +9,6 @@ struct destination {
   unsigned char nodeid[8];
   unsigned short metric;
   unsigned char nexthop[16];
-  struct neighbour* neigh;
   struct contribute *contributors;
   unsigned centrality;
   struct destination *next;
@@ -30,3 +29,4 @@ struct contribute *update_contributors(struct contribute *head,
 struct contribute* remove_contribute(struct contribute *head,
                                           struct neighbour *neigh);
 unsigned node_centrality();
+struct destination *find_update_dest(unsigned char* nodeid,unsigned short metric, unsigned char* NH);

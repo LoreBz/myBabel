@@ -260,6 +260,8 @@ flush_route(struct babel_route *route)
     oldmetric = route_metric(route);
     src = route->src;
 
+    remove_dest(src->id);
+
     if(route->installed) {
         uninstall_route(route);
         lost = 1;
@@ -503,9 +505,6 @@ uninstall_route(struct babel_route *route)
         return;
 
     route->installed = 0;
-    remove_dest(route->src->id);
-    refresh_dest_table();
-
     kuninstall_route(route);
 
 
@@ -1236,4 +1235,27 @@ expire_routes(void)
     again:
         ;
     }
+}
+
+struct babel_route *find_route_entry(const unsigned char *prefix,
+                        unsigned char plen)
+{
+    //printf("Looking for route matching%s\n", format_prefix(prefix, plen));
+    struct babel_route *rt = NULL;
+    struct route_stream *stream = NULL;
+    stream = route_stream(ROUTE_INSTALLED); /* or _ALL, or _SS_INSTALLED */
+    while(1) {
+        rt = route_stream_next(stream);
+        if(rt == NULL) break;
+        /*printf("\tNow comparing %s\n",
+        format_prefix(rt->src->prefix, rt->src->plen));*/
+        if(
+          (prefix_cmp(rt->src->prefix, rt->src->plen, prefix, plen) == PST_MORE_SPECIFIC)
+          || (prefix_cmp(rt->src->prefix, rt->src->plen, prefix, plen) == PST_EQUALS)
+              ) {
+            return rt;
+        }
+    }
+    route_stream_done(stream);
+    return rt;
 }
