@@ -690,12 +690,20 @@ main(int argc, char **argv)
 
         if(quitting) {
           //simulate failure:
-          //so not set retractions and so on but just close files
-          //then abort
-
-          //close files
+          //so not set retractions and so on but just close files, then abort
           printf("FAILURE SIMULATION: %s, %s\n", format_time(&now),
                 format_eui64(myid));
+          if(centralityLog) {
+            fclose(centralityLog);
+          }
+          if(topofile) {
+            fprintf(topofile, "\n]");
+            fclose(topofile);
+          }
+          if(neighfile) {
+            fprintf(neighfile, "\n]");
+            fclose(neighfile);
+          }
           exit(1);
         }
 
@@ -704,16 +712,18 @@ main(int argc, char **argv)
 
         //dest_table dump every 10 sec or little more
         if(timeval_compare(&now, &next_dest_dump) > 0) {
-          printf("My id %s seqno %d\n", format_eui64(myid), myseqno);
+          printf("My id %s centrality %u\n", format_eui64(myid), node_centrality());
           print_dest_table();
           timeval_add_msec(&next_dest_dump, &now, 10000);
         }
 
-        if(topo_dumping) {
+        if(topo_dumping && (topofile || neighfile)) {
           if(timeval_compare(&now, &next_dump) > 0) {
             //printf("DUMPING: %s\n",format_time(&now));
-            dump_topology(topofile);
-            dump_neighborhood(neighfile);
+            if(topofile)
+              dump_topology(topofile);
+            if(neighfile)
+              dump_neighborhood(neighfile);
             timeval_add_msec(&next_dump, &now, 1000);
           }
         }
@@ -873,6 +883,8 @@ main(int argc, char **argv)
     if(topofile) {
       fprintf(topofile, "\n]");
       fclose(topofile);
+    }
+    if(neighfile) {
       fprintf(neighfile, "\n]");
       fclose(neighfile);
     }

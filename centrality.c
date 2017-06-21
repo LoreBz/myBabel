@@ -38,46 +38,6 @@ unsigned node_centrality() {
   return retval;
 }
 
-
-/*int dest_installed(unsigned char* nodeid) {
-  struct route_stream *routes;
-  routes = route_stream(ROUTE_INSTALLED);
-  int found = 0;
-  if(routes) {
-      while(1) {
-          struct babel_route *rt = route_stream_next(routes);
-          if(rt == NULL) break;
-          if(memcmp(rt->src->id, nodeid, 8)==0) {
-            found = 1;
-            break;
-          }
-      }
-      route_stream_done(routes);
-  }
-  return found;
-}*/
-
-/*void refresh_dest_table() {
-  //at first remove unistalled destinations
-  struct destination *dest;
-  for (dest=destinations; dest; dest=dest->next) {
-    if (!dest_installed(dest->nodeid)) {
-      remove_dest(dest->nodeid);
-    }
-  }
-  //then select best NH for each destination
-  struct route_stream *routes;
-  routes = route_stream(ROUTE_INSTALLED);
-  if(routes) {
-      while(1) {
-          struct babel_route *rt = route_stream_next(routes);
-          if(rt == NULL) break;
-          update_dest(rt->src->id, rt->src->metric, rt->nexthop, rt->neigh);
-      }
-      route_stream_done(routes);
-  }
-}*/
-
 void remove_dest(unsigned char* nodeid){
     struct destination* prev = NULL;
     struct destination* ptr = destinations;
