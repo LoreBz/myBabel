@@ -166,7 +166,7 @@ parse_rid_subtlv(struct interface *ifp, const unsigned char *from,
             neigh = find_neighbour(from,ifp);
 
             if(memcmp(myid, router_id, 8)!=0) {
-              struct destination *dest = find_update_dest(router_id, refmetric+neighbour_cost(neigh), senderAddr);
+              struct destination *dest = find_destination(router_id);
 
               //handle contribs
               int through_me = (strcmp(format_address(fhop), addr)==0);
