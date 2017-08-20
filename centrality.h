@@ -30,3 +30,4 @@ struct contribute* remove_contribute(struct contribute *head,
                                           struct neighbour *neigh);
 unsigned node_centrality();
 struct destination *find_update_dest(unsigned char* nodeid,unsigned short metric, unsigned char* NH);
+void foo(FILE* out);

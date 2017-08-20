@@ -1,6 +1,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <netinet/in.h>
+#include <net/if.h>
+#include <arpa/inet.h>
 
 #include "babeld.h"
 #include "kernel.h"
@@ -12,6 +15,49 @@
 #include "centrality.h"
 
 struct destination *destinations = NULL;
+
+void foo(FILE* out) {
+  struct destination* ptr = destinations;
+  fprintf(out,",\n\t {"
+              "\n\t\t\"nodeid\": \"%s\",\n",format_eui64(myid));
+  fprintf(out,"\t\t\"interfaces\":[\n");
+  int count=0;
+  struct interface *ifp;
+  FOR_ALL_INTERFACES(ifp) {
+    char addr[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, ifp->ipv4, addr, INET_ADDRSTRLEN);
+    char addr6[INET6_ADDRSTRLEN];
+    inet_ntop(AF_INET6, ifp->ll, addr6, INET6_ADDRSTRLEN);
+    if(count!=0) {
+      fprintf(out, ",\n");
+    }
+    fprintf(out, "\t\t\t{\n"
+      "\t\t\t\t\"name\": \"%s\",\n"
+      "\t\t\t\t\"ipv4\": \"%s\",\n"
+      "\t\t\t\t\"ipv6\": \"%s\"\n"
+      "\t\t\t}",ifp->name, addr, addr6);
+    count++;
+  }
+  fprintf(out, "\n\t\t],\n");
+
+  fprintf(out,"\t\t\"destinations\":[\n");
+  count = 0;
+  while(ptr!=NULL) {
+    if(count!=0) {
+        fprintf(out, ",\n");
+    }
+    fprintf(out,  "\t\t\t{\n"
+                  "\t\t\t\"dest\": \"%s\",\n"
+                  "\t\t\t\"NH\": \"%s\",\n"
+                  "\t\t\t\"CENTR\": \"%u\""
+                  "\n\t\t\t}",
+                  format_eui64(ptr->nodeid),format_address(ptr->nexthop),ptr->centrality);
+    count++;
+    ptr = ptr->next;
+    }
+  fprintf(out, "\n\t\t]\n\t}");
+
+}
 
 void print_dest_table() {
     struct destination* ptr = destinations;

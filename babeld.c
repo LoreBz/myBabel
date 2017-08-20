@@ -714,7 +714,8 @@ main(int argc, char **argv)
         if(timeval_compare(&now, &next_dest_dump) > 0) {
           printf("My id %s centrality %u\n", format_eui64(myid), node_centrality());
           print_dest_table();
-          timeval_add_msec(&next_dest_dump, &now, 10000);
+          refresh_dest_table();
+          timeval_add_msec(&next_dest_dump, &now, 4000);
         }
 
         if(topo_dumping && (topofile || neighfile)) {
@@ -724,7 +725,7 @@ main(int argc, char **argv)
               dump_topology(topofile);
             if(neighfile)
               dump_neighborhood(neighfile);
-            timeval_add_msec(&next_dump, &now, 1000);
+            timeval_add_msec(&next_dump, &now, 490);
           }
         }
 
@@ -876,6 +877,8 @@ main(int argc, char **argv)
     debugf("Exiting...\n");
     usleep(roughly(10000));
     gettime(&now);
+
+
 
     if(centralityLog) {
       fclose(centralityLog);
@@ -1041,7 +1044,7 @@ dump_topology(FILE *out) {
 
 static void
 dump_neighborhood(FILE *out) {
-  fprintf(out, ",\n\t{\n"
+  /*fprintf(out, ",\n\t{\n"
     "\t\t\"router_id\": \"%s\",\n"
     "\t\t\"time\": \"%s\",\n"
     "\t\t\"interfaces\": [\n",
@@ -1077,7 +1080,8 @@ dump_neighborhood(FILE *out) {
         "\t\t\t}",format_address(neigh->address), neighbour_cost(neigh)/256.0);
       count++;
     }
-    fprintf(out, "\n\t\t]\n\t}");
+    fprintf(out, "\n\t\t]\n\t}");*/
+    foo(out);
 }
 
 static int

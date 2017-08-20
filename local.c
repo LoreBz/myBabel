@@ -265,7 +265,7 @@ local_notify_route_1(struct local_socket *s, struct babel_route *route, int kind
 void
 local_notify_route(struct babel_route *route, int kind)
 {
-    refresh_dest_table();
+    //refresh_dest_table();
     int i;
     for(i = 0; i < num_local_sockets; i++) {
         if(local_sockets[i].monitor)
